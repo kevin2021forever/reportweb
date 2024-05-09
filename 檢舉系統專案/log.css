@@ -1,0 +1,59 @@
+/* web.css */
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background: url(img/img2.jpg) center /cover ;
+  }
+  
+  h1 {
+    color: #333;
+  }
+  .tableheader{
+    width: 100%;
+    height: 10%;
+    background-color: #fff4;
+    padding: .8rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: .6rem;
+  }
+  /*表格內容*/
+  #user-table{
+    background-color: rgba(255, 255, 255, 0.9);
+  }
+  
+  .data-table {
+    border-collapse: collapse; /* 將表格邊框合併 */
+    border-spacing: 0; /* 確保沒有間隔 */
+    margin: auto; 
+  }
+  .data-table thead th {
+    padding: 10px; /* 添加內邊距 */
+    height: 60px; /* 設置表頭的高度 */
+    line-height: 60px; /* 設置文字的行高 */
+}
+h1 {
+  position: absolute; /* 將h1設置為絕對定位 */
+  top: 0; /* 將h1元素置於容器的頂部 */
+  left: 50%; /* 將h1元素水平居中 */
+  transform: translateX(-50%); /* 水平居中 */
+}
+tbody tr:nth-child(even){
+    background-color: #0000000b;
+}
+
+.delete-button {
+  background-color: wheat;
+  padding:.4rem 0;
+  border-radius: 2rem;
+  width:80px;
+  height:40px;
+  border: none;
+}
+  
+  
+  

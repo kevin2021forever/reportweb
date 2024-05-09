@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>檢舉紀錄系統</title>
+  <link rel="stylesheet" href="log.css">
+  <script src="jquery-3.6.4.min.js"></script>
+</head>
+<body>
+    <div class="data-display">
+        <section class="tableheader">
+            <!--<h1>檢舉管理系統</h1>-->
+            <table class="data-table">
+            <thead>
+                <tr>
+                <th style="display: none;">ID</th>
+                <th>SKIN</th>
+                <th>姓名(檢舉者暱稱)</th>
+                <th>玩家ID</th>
+                <th>分流</th>
+                <th>檢舉原因</th>
+                <th>審核狀態</th>
+                <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="user-table">
+            </tbody>
+            </table>
+        </section>
+            <div class="edit-delete-buttons" style="display: none;">
+                <button class="delete-button">刪除</button>
+            </div>
+            <div class="selectbuttons" style="display: none;">
+                <button class="select-button">審核切換</button>
+            </div>
+            <div id="pagination"></div>
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="輸入玩家ID">
+                <button id="search-button">搜尋</button>
+            </div>
+            <div id="result-count"></div>
+    </div>
+    <script>
+     $(document).ready(function () {
+        $('#user-table').on('click', '.delete-button', function () {
+            var row = $(this).closest('tr');
+            var userId = row.find('td:eq(0)').text();
+            $.ajax({
+                type: 'POST',
+                url: 'http://localhost:3000/delete',
+                data: JSON.stringify({ user2: userId }),
+                contentType: 'application/json',
+                success: function (data) {
+                alert(userId);
+                row.remove()
+                console.log('刪除請求成功', data);
+                },
+                error: function (error) {
+                alert('刪除失敗');
+                }
+            });
+        });
+        $('#user-table').on('click', '.select-button', function () {
+            // Get the user ID from the selected row
+            var row = $(this).closest('tr');
+            var userId = row.find('td:eq(0)').text();
+            // Get the current status
+            var currentStatus = row.find('td:eq(6)').text()
+            // Calculate the new status
+            var newStatus = currentStatus === "審核中" ? "確定違規" : "審核中";
+
+            // AJAX request to update the status
+            $.ajax({
+                type: 'POST',
+                url: 'http://localhost:3000/update_status',
+                data: JSON.stringify({ userId: userId, newStatus: newStatus }),
+                contentType: 'application/json',
+                success: function (data) {
+                    alert('審核狀態已更新');
+                    // Update the status in the table
+                    row.find('td:eq(6)').text(newStatus);
+                },
+                error: function (error) {
+                    alert('更新失敗');
+                }
+            });
+        });
+        
+        // 假設每頁顯示 5 條資料
+        var itemsPerPage = 5;
+        var currentPage = 1;
+
+        function populateUserTable(data) {
+            var startIndex = (currentPage - 1) * itemsPerPage;
+            var endIndex = startIndex + itemsPerPage;
+            var userTable = $('#user-table');
+            userTable.empty(); // 清空資料表格
+
+            for (var i = startIndex; i < Math.min(endIndex, data.length); i++) {
+                var user = data[i];
+                var newRow = $('<tr>');
+                newRow.append($('<td>').text(user.user_id).css('display', 'none'));
+                newRow.append($('<td>').html('<img src="' + user.skin + '"width="100" height="100">'));
+                newRow.append($('<td>').text(user.name));
+                newRow.append($('<td>').text(user.iid));
+                newRow.append($('<td>').text(user.server));
+                newRow.append($('<td>').text(user.what));
+                newRow.append($('<td>').text(user.what2));
+                newRow.append($('<td>').html('<button class="delete-button">刪除</button>'));
+                newRow.append($('<td>').html('<button class="select-button">審核切換</button>'));
+                userTable.append(newRow);
+            }
+        }
+
+        function updatePagination(data) {
+            var totalPages = Math.ceil(data.length / itemsPerPage);
+            $('#pagination').empty();
+            for (var i = 1; i <= totalPages; i++) {
+                $('#pagination').append($('<button>').text(i).click(function () {
+                    currentPage = parseInt($(this).text());
+                    populateUserTable(data);
+                }));
+            }
+        }
+
+        $.get('http://localhost:3000/users', function (data) {
+            updatePagination(data);
+            populateUserTable(data);
+        });
+
+        $('#prev-page').click(function () {
+            if (currentPage > 1) {
+                currentPage--;
+                populateUserTable(data);
+            }
+        });
+
+        $('#next-page').click(function () {
+            if (currentPage < Math.ceil(data.length / itemsPerPage)) {
+                currentPage++;
+                populateUserTable(data);
+            }
+        });
+        $('#search-button').click(function () {
+            var userId = $('#search-input').val(); // 获取搜索输入框中的玩家ID
+            // 发送搜索用户的请求
+            $.ajax({
+                type: 'POST',
+                url: 'http://localhost:3000/search_user',
+                data: JSON.stringify({ userId: userId }),
+                contentType: 'application/json',
+                success: function (data) {
+                    alert('搜索成功');
+                    currentPage = 1;
+                    updatePagination(data);
+                    // 清空表格并填充搜索结果
+                    $('#user-table').empty();
+                    populateUserTable(data);
+                    if (data.length > 0) {
+                        $('#result-count').text(data.length + '條相關數據');
+                    } else {
+                        $('#result-count').text('未找到相關數據');
+                    }
+                },
+                error: function (error) {
+                    alert('搜索失败');
+                }
+            });
+        });
+    });
+
+    </script>
+</body>
+</html>
