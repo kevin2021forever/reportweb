@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>登入系統</title>
+  <link rel="stylesheet" href="log2.css">
+  <script src="jquery-3.6.4.min.js"></script>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-box">
+      <h2>會員登入</h2>
+      <form>
+        <div class="input-group">
+          <label>帳號</label>
+          <input type="text" id="username" placeholder="請輸入帳號">
+        </div>
+        <div class="input-group">
+          <label>密碼</label>
+          <input type="password" id="password" placeholder="請輸入密碼">
+        </div>
+        <button type="submit" id="loginSubmit" class="login-btn">登入</button>
+      </form>
+    </div>
+  </div>
+  <script>
+        $(document).ready(function() {
+            // 當表單按下送出按鈕時
+            $('form').on('submit', function(e) {
+                e.preventDefault(); // 阻擋表單預設的跳頁動作
+                // 1. 抓取使用者輸入的資料
+                var userData = {
+                    username: $('#username').val(),
+                    password: $('#password').val()
+                };
+
+                // 2. 檢查是否有空欄位（簡單的前端驗證）
+                if (userData.username === "" || userData.password === "") {
+                    alert("請填寫帳號與密碼");
+                    return;
+                }
+
+                // 3. 發送 AJAX 請求到後端
+                $.ajax({
+                    url: 'http://127.0.0.1:3000/login_process', // 你的後端處理程式路徑
+                    type: 'POST',             // 使用 POST 方法傳送敏感資料
+                    data: JSON.stringify(userData),           // 傳送的資料物件
+                    dataType: 'json',
+                    contentType: 'application/json',    // 預期後端回傳格式為 JSON
+                    xhrFields: {
+                        withCredentials: true   // 🔥關鍵
+                    },    
+                    success: function(response) {
+                        // 如果後端回傳成功
+                        if (response.success) {
+                            alert("登入成功！即將跳轉...");
+                            window.location.href = "webtest.html"; // 導向管理後台
+                        } else {
+                            alert("登入失敗：" + response.message);
+                        }
+                    },
+                    error: function() {
+                        alert("伺服器連線失敗，請稍後再試");
+                    }
+                });
+            });
+        });
+   </script>
+
+</body>
+</html>
