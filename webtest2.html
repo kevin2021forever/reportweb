@@ -1,0 +1,55 @@
+$(document).ready(function () {
+    // 假設每頁顯示 5 條資料
+    var itemsPerPage = 5;
+    var currentPage = 1;
+
+    function populateUserTable(data) {
+      var startIndex = (currentPage - 1) * itemsPerPage;
+      var endIndex = startIndex + itemsPerPage;
+      var userTable = $('#user-table');
+      userTable.empty(); // 清空資料表格
+
+      for (var i = startIndex; i < Math.min(endIndex, data.length); i++) {
+        var user = data[i];
+        var newRow = $('<tr>');
+        newRow.append($('<td>').text(user.user_id).css('display', 'none'));
+        newRow.append($('<td>').html('<img src="' + user.skin + '"width="100" height="100">'));
+        newRow.append($('<td>').text(user.name));
+        newRow.append($('<td>').text(user.iid));
+        newRow.append($('<td>').text(user.server));
+        newRow.append($('<td>').text(user.what));
+        newRow.append($('<td>').html('<button class="delete-button">刪除</button>'));
+        userTable.append(newRow);
+      }
+    }
+
+    function updatePagination(data) {
+      var totalPages = Math.ceil(data.length / itemsPerPage);
+      $('#pagination').empty();
+      for (var i = 1; i <= totalPages; i++) {
+        $('#pagination').append($('<button>').text(i).click(function () {
+          currentPage = parseInt($(this).text());
+          populateUserTable(data);
+        }));
+      }
+    }
+
+    $.get('http://localhost:3000/users', function (data) {
+      updatePagination(data);
+      populateUserTable(data);
+    });
+
+    $('#prev-page').click(function () {
+      if (currentPage > 1) {
+        currentPage--;
+        populateUserTable(data);
+      }
+    });
+
+    $('#next-page').click(function () {
+      if (currentPage < Math.ceil(data.length / itemsPerPage)) {
+        currentPage++;
+        populateUserTable(data);
+      }
+    });
+  });

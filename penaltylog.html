@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>懲罰紀錄</title>
+  <link rel="stylesheet" href="log.css">
+  <script src="jquery-3.6.4.min.js"></script>
+</head>
+<body>
+   <div id="user-bar">
+        <div>
+            👤 使用者：<span id="username">-</span>
+            ｜ 權限 <span id="userid">-</span>
+        </div>
+        <button id="records-btn" type="button">紀錄</button>
+        <button id="logout-btn">登出</button>
+   </div>
+    <div class="data-display">
+        <section class="tableheader">
+            <h2 class="page-title">懲罰紀錄</h2>
+            <table class="data-table records-table">
+            <thead>
+                <tr>
+                <th>SKIN</th>
+                <th>被檢舉人</th>
+                <th>懲罰時間</th>
+                <th>執行使用者帳號</th>
+                </tr>
+            </thead>
+            <tbody id="penalty-log-table">
+            </tbody>
+            </table>
+        </section>
+        <div class="records-actions">
+            <button id="back-audit-btn" type="button">返回審核頁面</button>
+        </div>
+        <div id="result-count"></div>
+    </div>
+    <script>
+     $(document).ready(function () {
+         $.ajax({
+            url: 'http://127.0.0.1:3000/me',
+            method: 'GET',
+            xhrFields: { withCredentials: true },
+            success: function (res) {
+                if (!res.loggedIn) {
+                    alert("請先登入");
+                    window.location.href = "loginpage.html";
+                    return;
+                }
+                $('#username').text(res.user.username);
+                $('#userid').text(res.user.role);
+            },
+            error: function () {
+                alert("請先登入");
+                window.location.href = "loginpage.html";
+            }
+        });
+
+        $('#records-btn').click(function () {
+            window.location.href = 'penaltylog.html';
+        });
+
+        $('#logout-btn').click(function () {
+            $.ajax({
+                url: 'http://127.0.0.1:3000/logout',
+                method: 'GET',
+                xhrFields: { withCredentials: true },
+                success: function (res) {
+                    if (res.success) {
+                        alert("已登出");
+                        window.location.href = "loginpage.html";
+                    }
+                }
+            });
+        });
+
+        $('#back-audit-btn').click(function () {
+            window.location.href = 'webtest.html';
+        });
+
+        // 前端假資料（之後可改為 API）
+        var mockPenaltyLogs = [
+            {
+                skin: 'https://mc-heads.net/avatar/Steve/100',
+                reportedName: '史蒂夫',
+                penaltyTime: '2026-05-18 09:15:22',
+                executor: 'admin_kevin'
+            },
+            {
+                skin: 'https://mc-heads.net/avatar/Alex/100',
+                reportedName: '艾莉克斯',
+                penaltyTime: '2026-05-19 14:02:41',
+                executor: 'admin_kevin'
+            },
+            {
+                skin: 'https://mc-heads.net/avatar/Notch/100',
+                reportedName: 'Notch',
+                penaltyTime: '2026-05-20 11:30:00',
+                executor: 'moderator01'
+            },
+            {
+                skin: 'https://mc-heads.net/avatar/Herobrine/100',
+                reportedName: 'Herobrine',
+                penaltyTime: '2026-05-21 08:45:33',
+                executor: 'admin_kevin'
+            },
+            {
+                skin: 'https://mc-heads.net/avatar/Creeper/100',
+                reportedName: '苦力怕',
+                penaltyTime: '2026-05-21 16:20:10',
+                executor: 'moderator02'
+            }
+        ];
+
+        function renderPenaltyLogs(logs) {
+            var tbody = $('#penalty-log-table');
+            tbody.empty();
+            logs.forEach(function (log) {
+                var row = $('<tr>');
+                row.append(
+                    $('<td>').html(
+                        '<img src="' + log.skin + '" width="100" height="100" alt="skin">'
+                    )
+                );
+                row.append($('<td>').text(log.reportedName));
+                row.append($('<td>').text(log.penaltyTime));
+                row.append($('<td>').text(log.executor));
+                tbody.append(row);
+            });
+            $('#result-count').text('共 ' + logs.length + ' 筆懲罰紀錄');
+        }
+
+        renderPenaltyLogs(mockPenaltyLogs);
+    });
+    </script>
+</body>
+</html>

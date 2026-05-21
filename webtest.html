@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>檢舉紀錄系統</title>
+  <link rel="stylesheet" href="log.css">
+  <script src="jquery-3.6.4.min.js"></script>
+</head>
+
+<body>
+   <div id="user-bar">
+        <div>
+            👤 使用者：<span id="username">-</span>
+            ｜ 權限 <span id="userid">-</span>
+        </div>
+        <button id="records-btn" type="button">紀錄</button>
+        <button id="logout-btn">登出</button>
+   </div>
+    <div class="data-display">
+        <section class="tableheader">
+            <!--<h1>檢舉管理系統</h1>-->
+            <table class="data-table">
+            <thead>
+                <tr>
+                <th style="display: none;">ID</th>
+                <th>SKIN</th>
+                <th>姓名(檢舉者暱稱)</th>
+                <th>玩家ID</th>
+                <th>分流</th>
+                <th>檢舉原因</th>
+                <th>審核狀態</th>
+                <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="user-table">
+            </tbody>
+            </table>
+        </section>
+            <div class="edit-delete-buttons" style="display: none;">
+                <button class="delete-button">刪除</button>
+            </div>
+            <div class="selectbuttons" style="display: none;">
+                <button class="select-button">審核切換</button>
+            </div>
+            <div id="pagination"></div>
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="輸入玩家ID">
+                <button id="search-button">搜尋</button>
+                <button id="violation-query-button" type="button">目前違規查詢</button>
+            </div>
+            <div id="result-count"></div>
+    </div>
+    <script>
+     $(document).ready(function () {
+         $.ajax({
+            url: 'http://127.0.0.1:3000/me',
+            method: 'GET',
+            xhrFields: {
+                withCredentials: true
+            },
+            success: function (res) {
+                if (!res.loggedIn) {
+                    alert("請先登入");
+                    window.location.href = "loginpage.html";
+                }
+                $('#username').text(res.user.username);
+                $('#userid').text(res.user.role);
+            },
+            error: function () {
+                alert("請先登入");
+                window.location.href = "loginpage.html";
+            }
+        });
+        $('#records-btn').click(function () {
+            window.location.href = 'penaltylog.html';
+        });
+
+        $('#logout-btn').click(function () {
+            $.ajax({
+                url: 'http://127.0.0.1:3000/logout',
+                method: 'GET',
+                xhrFields: {
+                    withCredentials: true
+                },
+                success: function (res) {
+                    if (res.success) {
+                        alert("已登出");
+                        window.location.href = "loginpage.html";
+                    }
+                }
+            });
+        });
+        $('#user-table').on('click', '.delete-button', function () {
+            var row = $(this).closest('tr');
+            var userId = row.find('td:eq(0)').text();
+            $.ajax({
+                type: 'POST',
+                url: 'http://127.0.0.1:3000/delete',
+                data: JSON.stringify({ user2: userId }),
+                contentType: 'application/json',
+                xhrFields: { withCredentials: true },
+                success: function (data) {
+                alert(userId);
+                displayData = displayData.filter(function (u) {
+                    return String(u.user_id) !== String(userId);
+                });
+                renderTable();
+                console.log('刪除請求成功', data);
+                },
+                error: function (error) {
+                alert('刪除失敗');
+                }
+            });
+        });
+        $('#user-table').on('click', '.penalty-button', function () {
+            var iid = $(this).data('iid') || $(this).closest('tr').find('td:eq(3)').text();
+            if (!confirm('是否確定對玩家「' + iid + '」進行懲罰？')) {
+                return;
+            }
+            $.ajax({
+                type: 'POST',
+                url: 'http://127.0.0.1:3000/apply_penalty',
+                xhrFields: { withCredentials: true },
+                data: JSON.stringify({ iid: iid }),
+                contentType: 'application/json',
+                success: function (res) {
+                    if (res.success) {
+                        alert(res.message);
+                        displayData = displayData.filter(function (u) {
+                            return String(u.iid) !== String(iid);
+                        });
+                        if (displayData.length === 0) {
+                            $('#result-count').text('');
+                        } else {
+                            $('#result-count').text(
+                                '共 ' + displayData.length + ' 位玩家達違規 3 次門檻'
+                            );
+                        }
+                        renderTable();
+                    } else {
+                        alert(res.message || '處罰失敗');
+                    }
+                },
+                error: function () {
+                    alert('處罰請求失敗');
+                }
+            });
+        });
+
+        $('#user-table').on('click', '.select-button', function () {
+            // Get the user ID from the selected row
+            var row = $(this).closest('tr');
+            var userId = row.find('td:eq(0)').text();
+            // Get the current status
+            var currentStatus = row.find('td:eq(6)').text()
+            // Calculate the new status
+            var newStatus = currentStatus === "審核中" ? "確定違規" : "審核中";
+
+            // AJAX request to update the status
+            $.ajax({
+                type: 'POST',
+                url: 'http://127.0.0.1:3000/update_status',
+                xhrFields: { withCredentials: true },
+                data: JSON.stringify({ userId: userId, newStatus: newStatus }),
+                contentType: 'application/json',
+                success: function (data) {
+                    alert('審核狀態已更新');
+                    row.find('td:eq(6)').text(newStatus);
+                    displayData.forEach(function (u) {
+                        if (String(u.user_id) === String(userId)) {
+                            u.what2 = newStatus;
+                        }
+                    });
+                },
+                error: function (error) {
+                    alert('更新失敗');
+                }
+            });
+        });
+        
+        // 假設每頁顯示 5 條資料
+        var itemsPerPage = 5;
+        var currentPage = 1;
+        var displayData = [];   // 目前表格使用的資料（全部、搜尋或違規查詢）
+        var listMode = 'all';   // all | search | violation
+
+        //取出5畫進 #user-table 表格
+        function populateUserTable(data) {
+            var startIndex = (currentPage - 1) * itemsPerPage;
+            var endIndex = startIndex + itemsPerPage;
+            var userTable = $('#user-table');
+            userTable.empty();
+
+            for (var i = startIndex; i < Math.min(endIndex, data.length); i++) {
+                var user = data[i];
+                var newRow = $('<tr>');
+
+                if (listMode === 'violation') {
+                    newRow.append($('<td>').text(user.iid).css('display', 'none'));
+                    newRow.append($('<td>').html('<img src="' + user.skin + '" width="100" height="100">'));
+                    newRow.append($('<td>').text(user.name));
+                    newRow.append($('<td>').text(user.iid));
+                    newRow.append($('<td>').text(user.server));
+                    newRow.append($('<td>').text(user.what));
+                    newRow.append($('<td>').text('違規3次'));
+                    newRow.append($('<td>'));
+                    newRow.append($('<td>').html(
+                        '<button type="button" class="penalty-button" data-iid="' + user.iid + '">執行處罰</button>'
+                    ));
+                } else {
+                    newRow.append($('<td>').text(user.user_id).css('display', 'none'));
+                    newRow.append($('<td>').html('<img src="' + user.skin + '" width="100" height="100">'));
+                    newRow.append($('<td>').text(user.name));
+                    newRow.append($('<td>').text(user.iid));
+                    newRow.append($('<td>').text(user.server));
+                    newRow.append($('<td>').text(user.what));
+                    newRow.append($('<td>').text(user.what2));
+                    newRow.append($('<td>').html('<button class="delete-button">刪除</button>'));
+                    newRow.append($('<td>').html('<button class="select-button">審核切換</button>'));
+                }
+                userTable.append(newRow);
+            }
+        }
+
+        //畫出分頁按鈕
+        function updatePagination(data) {
+            var totalPages = Math.max(1, Math.ceil(data.length / itemsPerPage));
+            //刪除資料時如果超過當前頁數超過總頁數時調整
+            if (currentPage > totalPages) {
+                currentPage = totalPages;
+            }
+            $('#pagination').empty();
+            for (var i = 1; i <= totalPages; i++) {
+                (function (pageNum) {
+                    var btn = $('<button>').text(pageNum);
+                    if (pageNum === currentPage) {
+                        btn.addClass('active-page');
+                    }
+                    btn.on('click', function () {
+                        currentPage = pageNum;
+                        refreshTable();
+                    });
+                    $('#pagination').append(btn);
+                })(i);
+            }
+        }
+
+        function renderTable() {
+            updatePagination(displayData);
+            populateUserTable(displayData);
+        }
+
+        // 查無資料時回傳 false，不更新表格與 listMode
+        function applyListIfHasData(data, mode, resultText) {
+            if (!data || data.length === 0) {
+                return false;
+            }
+            if (mode) {
+                listMode = mode;
+            }
+            displayData = data;
+            renderTable();
+            if (resultText !== undefined && resultText !== null) {
+                $('#result-count').text(resultText);
+            }
+            return true;
+        }
+
+        // 從伺服器重新載入並刷新表格（分頁、編輯後都走這裡）
+        function refreshTable() {
+            if (listMode === 'search') {
+                var userId = $('#search-input').val();
+                $.ajax({
+                    type: 'POST',
+                    url: 'http://127.0.0.1:3000/search_user',
+                    xhrFields: { withCredentials: true },
+                    data: JSON.stringify({ userId: userId }),
+                    contentType: 'application/json',
+                    success: function (data) {
+                        if (!applyListIfHasData(data, 'search', data.length + '條相關數據')) {
+                            alert('未找到相關數據');
+                        }
+                    },
+                    error: function () {
+                        alert('重新載入失敗');
+                    }
+                });
+                return;
+            }
+            if (listMode === 'violation') {
+                var userId = $('#search-input').val().trim();
+                $.ajax({
+                    type: 'POST',
+                    url: 'http://127.0.0.1:3000/violation_query',
+                    xhrFields: { withCredentials: true },
+                    data: JSON.stringify({ userId: userId }),
+                    contentType: 'application/json',
+                    success: function (data) {
+                        if (!applyListIfHasData(
+                            data,
+                            'violation',
+                            '共 ' + data.length + ' 位玩家達違規 3 次門檻'
+                        )) {
+                            alert('查無違規玩家');
+                        }
+                    },
+                    error: function () {
+                        alert('違規查詢失敗');
+                    }
+                });
+                return;
+            }
+            $.ajax({
+                url: 'http://127.0.0.1:3000/users',
+                method: 'GET',
+                xhrFields: { withCredentials: true },
+                success: function (data) {
+                    displayData = data;
+                    renderTable();
+                    $('#result-count').text('');
+                },
+                error: function () {
+                    alert('請先登入');
+                    window.location.href = 'loginpage.html';
+                }
+            });
+        }
+
+        listMode = 'all';
+        refreshTable();
+
+        function runViolationQuery() {
+            var userId = $('#search-input').val().trim();
+            $.ajax({
+                type: 'POST',
+                url: 'http://127.0.0.1:3000/violation_query',
+                xhrFields: { withCredentials: true },
+                data: JSON.stringify({ userId: userId }),
+                contentType: 'application/json',
+                success: function (data) {
+                    if (!applyListIfHasData(
+                        data,
+                        'violation',
+                        '共 ' + data.length + ' 位玩家達違規 3 次門檻'
+                    )) {
+                        alert('查無違規玩家');
+                        return;
+                    }
+                    currentPage = 1;
+                },
+                error: function () {
+                    alert('違規查詢失敗');
+                }
+            });
+        }
+
+        $('#search-button').click(function () {
+            var userId = $('#search-input').val();
+            $.ajax({
+                type: 'POST',
+                url: 'http://127.0.0.1:3000/search_user',
+                xhrFields: { withCredentials: true },
+                data: JSON.stringify({ userId: userId }),
+                contentType: 'application/json',
+                success: function (data) {
+                    if (!applyListIfHasData(data, 'search', data.length + '條相關數據')) {
+                        alert('未找到相關數據');
+                        return;
+                    }
+                    alert('搜索成功');
+                    currentPage = 1;
+                },
+                error: function (error) {
+                    alert('搜索失败');
+                }
+            });
+        });
+
+        $('#violation-query-button').click(runViolationQuery);
+    });
+
+    </script>
+</body>
+</html>
